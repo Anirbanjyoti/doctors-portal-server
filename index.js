@@ -34,7 +34,25 @@ async function run() {
       const bookings = await cursor.toArray();
       res.send(bookings);
     });
-    
+    //  create/post single data of appointment to backend
+    app.post("/appointment", async (req, res) => {
+      const appointment = req.body;
+      const query ={treatment:appointment.treatment, date:appointment.date, patient:appointment.patient}
+      const exists = await appointmentCollection.findOne(query);
+      if(exists){
+        return res.send({success: false, appointment:exists})
+      }
+      const result = await appointmentCollection.insertOne(appointment);
+      return res.send({success: true, result});
+    });
+    /**
+     * API Naming Convention
+     * api.get('/booking') // get all booking
+     * api.get('/booking/:id') // get a specific booking
+     * api.post('/booking') // add a new booking
+     * api.patch('/booking/:id')
+     * api.delete('/booking/:id')
+     */
   } finally {
     // await client.close();
   }
