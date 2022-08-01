@@ -23,27 +23,68 @@ async function run() {
     const bookingCollection = client
       .db("doctors_portal")
       .collection("bookings");
-    const appointmentCollection = client
+    const serviceCollection = client
       .db("doctors_portal")
-      .collection("appointment");
+      .collection("services");
 
     //  get multiple data
-    app.get("/bookings", async (req, res) => {
+    app.get("/service", async (req, res) => {
       const query = {};
-      const cursor = bookingCollection.find(query);
-      const bookings = await cursor.toArray();
-      res.send(bookings);
+      const cursor = serviceCollection.find(query);
+      const services = await cursor.toArray();
+      res.send(services);
     });
-    //  create/post single data of appointment to backend
-    app.post("/appointment", async (req, res) => {
-      const appointment = req.body;
-      const query ={treatment:appointment.treatment, date:appointment.date, patient:appointment.patient}
-      const exists = await appointmentCollection.findOne(query);
-      if(exists){
-        return res.send({success: false, appointment:exists})
+
+    // Warning: This is not the proper way to query multiple collection.
+    // After learning more about mongodb. use aggregate, lookup, pipeline, match, group
+    app.get("/available", async (req, res) => {
+      const date = req.query.date || 'Aug 1, 2022';
+
+      // step 1:  get all services
+      const services = await serviceCollection.find().toArray();
+
+      // step 2: get the booking of that day. output: [{}, {}, {}, {}, {}, {}]
+      const query = { date: date };
+      const bookings = await bookingCollection.find(query).toArray();
+
+      // step 3: for each service
+      services.forEach((service) => {
+      // step 4: find bookings for that service. output: [{}, {}, {}, {}]
+      const serviceBookings = bookings.filter(
+        (b) => b.treatment === service.name);
+
+        const bookedSlots = serviceBookings.map((s) => s.slot);
+      // step 5: select slots for the service Bookings: ['', '', '', '']
+      // const bookedSlots = serviceBookings.map((s) => console.log(s.slot));
+
+      // step 6: select those slots that are not in bookedSlots
+      // console.log(bookedSlots);
+
+      const available = service.slots.filter(
+        (slot) => !bookedSlots.includes(slot)
+      );
+      //step 7: set available to slots to make it easier
+      service.slots = available;
+      });
+
+      res.send(services);
+    });
+
+
+    //  create/post single data of booking and send to backend
+    app.post("/booking", async (req, res) => {
+      const booking = req.body;
+      const query = {
+        treatment: booking.treatment,
+        date: booking.date,
+        patient: booking.patient,
+      };
+      const exists = await bookingCollection.findOne(query);
+      if (exists) {
+        return res.send({ success: false, booking: exists });
       }
-      const result = await appointmentCollection.insertOne(appointment);
-      return res.send({success: true, result});
+      const result = await bookingCollection.insertOne(booking);
+      return res.send({ success: true, result });
     });
     /**
      * API Naming Convention
