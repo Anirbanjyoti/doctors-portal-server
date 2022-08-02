@@ -38,7 +38,7 @@ async function run() {
     // Warning: This is not the proper way to query multiple collection.
     // After learning more about mongodb. use aggregate, lookup, pipeline, match, group
     app.get("/available", async (req, res) => {
-      const date = req.query.date || 'Aug 1, 2022';
+      const date = req.query.date || "Aug 1, 2022";
 
       // step 1:  get all services
       const services = await serviceCollection.find().toArray();
@@ -49,27 +49,34 @@ async function run() {
 
       // step 3: for each service
       services.forEach((service) => {
-      // step 4: find bookings for that service. output: [{}, {}, {}, {}]
-      const serviceBookings = bookings.filter(
-        (b) => b.treatment === service.name);
+        // step 4: find bookings for that service. output: [{}, {}, {}, {}]
+        const serviceBookings = bookings.filter(
+          (b) => b.treatment === service.name
+        );
 
         const bookedSlots = serviceBookings.map((s) => s.slot);
-      // step 5: select slots for the service Bookings: ['', '', '', '']
-      // const bookedSlots = serviceBookings.map((s) => console.log(s.slot));
+        // step 5: select slots for the service Bookings: ['', '', '', '']
+        // const bookedSlots = serviceBookings.map((s) => console.log(s.slot));
 
-      // step 6: select those slots that are not in bookedSlots
-      // console.log(bookedSlots);
+        // step 6: select those slots that are not in bookedSlots
+        // console.log(bookedSlots);
 
-      const available = service.slots.filter(
-        (slot) => !bookedSlots.includes(slot)
-      );
-      //step 7: set available to slots to make it easier
-      service.slots = available;
+        const available = service.slots.filter(
+          (slot) => !bookedSlots.includes(slot)
+        );
+        //step 7: set available to slots to make it easier
+        service.slots = available;
       });
 
       res.send(services);
     });
-
+    // Get All Bookings data for Dashboard
+    app.get("/booking", async (req, res) => {
+      const patientEmail = req.query.patient;
+      const query = { patient: patientEmail };
+      const bookings = await bookingCollection.find(query).toArray();
+      res.send(bookings)
+    });
 
     //  create/post single data of booking and send to backend
     app.post("/booking", async (req, res) => {
