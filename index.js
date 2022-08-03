@@ -26,6 +26,9 @@ async function run() {
     const serviceCollection = client
       .db("doctors_portal")
       .collection("services");
+    const userCollection = client
+      .db("doctors_portal")
+      .collection("users");
 
     //  get multiple data
     app.get("/service", async (req, res) => {
@@ -77,7 +80,18 @@ async function run() {
       const bookings = await bookingCollection.find(query).toArray();
       res.send(bookings)
     });
-
+    // By 'PUT' method taking Login registration User data
+    app.put("/user/:email", async(req, res)=>{
+      const email = req.params.email;
+      const user = req.body;
+      const filter = {email: email};
+      const options = {upsert: true};
+      const updateDoc ={
+        $set: user,
+      };
+      const result = await userCollection.updateOne(filter, updateDoc, options);
+      res.send(result);
+    })
     //  create/post single data of booking and send to backend
     app.post("/booking", async (req, res) => {
       const booking = req.body;
