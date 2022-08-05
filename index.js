@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 require("dotenv").config();
 const app = express();
@@ -16,6 +17,22 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+// JWT Token verify
+function verifyJWT(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: 'UnAuthorized access' });
+  }
+  const token = authHeader.split(' ')[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(403).send({ message: 'Forbidden access' })
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
+
 // async function error
 async function run() {
   try {
@@ -26,15 +43,16 @@ async function run() {
     const serviceCollection = client
       .db("doctors_portal")
       .collection("services");
-    const userCollection = client
-      .db("doctors_portal")
-      .collection("users");
+    const userCollection = client.db("doctors_portal").collection("users");
 
     //  get multiple data
     app.get("/service", async (req, res) => {
-      const query = {};
-      const cursor = serviceCollection.find(query);
-      const services = await cursor.toArray();
+      // const query = {};
+      // const cursor = serviceCollection.find(query);
+      // const services = await cursor.toArray();
+      
+      // ei 3 liner bodole eta 1 line e lekha jai
+      const services = await serviceCollection.find().toArray();
       res.send(services);
     });
 
@@ -73,25 +91,52 @@ async function run() {
 
       res.send(services);
     });
-    // Get All Bookings data for Dashboard
-    app.get("/booking", async (req, res) => {
-      const patientEmail = req.query.patient;
-      const query = { patient: patientEmail };
-      const bookings = await bookingCollection.find(query).toArray();
-      res.send(bookings)
+    // Get All Bookings users data for Dashboard
+    app.get("/booking", verifyJWT, async (req, res) => {
+      const patient = req.query.patient;
+      const decodedEmail = req.decoded.email;
+      if(patient === decodedEmail){
+        const query = { patient: patient };
+        const bookings = await bookingCollection.find(query).toArray();
+        return res.send(bookings);
+      }
+      else{
+        return res.status(403).send({message: 'Forbidden Access'})
+      }
+
     });
-    // By 'PUT' method taking Login registration User data
-    app.put("/user/:email", async(req, res)=>{
+    // Get all user in your website 
+    app.get('/user', verifyJWT, async(req,res)=>{
+      const users = await userCollection.find().toArray();
+      res.send(users);
+    })
+    // By 'PUT' method taking Login and registration User data
+    app.put("/user/:email", async (req, res) => {
       const email = req.params.email;
       const user = req.body;
-      const filter = {email: email};
-      const options = {upsert: true};
-      const updateDoc ={
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
         $set: user,
       };
       const result = await userCollection.updateOne(filter, updateDoc, options);
-      res.send(result);
-    })
+      const token = jwt.sign(
+        { email: email },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "1hr" }
+      );
+      res.send({ result, token });
+    });
+    // User admin API
+    app.put("/user/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+          const updateDoc = {
+        $set: {role:'admin'},
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send({result});
+    });
     //  create/post single data of booking and send to backend
     app.post("/booking", async (req, res) => {
       const booking = req.body;
