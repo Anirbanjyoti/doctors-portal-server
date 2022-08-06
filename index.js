@@ -134,7 +134,8 @@ async function run() {
       const isAdmin = user.role === 'admin';
       res.send({admin: isAdmin})
     })
-    // User admin API
+
+    // User admin API ANd denied unauthorized access by verifyJWT
     app.put("/user/admin/:email",verifyJWT, async (req, res) => {
       const email = req.params.email;
       const requester = req.decoded.email;
