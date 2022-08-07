@@ -52,7 +52,7 @@ async function run() {
       // const services = await cursor.toArray();
       
       // ei 3 liner bodole eta 1 line e lekha jai
-      const services = await serviceCollection.find().toArray();
+      const services = await serviceCollection.find().project({name:1}).toArray();
       res.send(services);
     });
 
