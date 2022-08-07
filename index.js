@@ -43,8 +43,24 @@ async function run() {
     const serviceCollection = client
       .db("doctors_portal")
       .collection("services");
-    const userCollection = client.db("doctors_portal").collection("users");
+    const userCollection = client
+    .db("doctors_portal")
+    .collection("users");
+    const doctorCollection = client
+    .db("doctors_portal")
+    .collection("doctors");
 
+    // Verify Admin if you are admin then you have access
+    const verifyAdmin = async (req, res, next) => {
+      const requester = req.decoded.email;
+      const requesterAccount = await userCollection.findOne({ email: requester });
+      if (requesterAccount.role === 'admin') {
+        next();
+      }
+      else {
+        res.status(403).send({ message: 'forbidden' });
+      }
+    }
     //  get multiple data
     app.get("/service", async (req, res) => {
       // const query = {};
@@ -136,22 +152,15 @@ async function run() {
     })
 
     // User admin API ANd denied unauthorized access by verifyJWT
-    app.put("/user/admin/:email",verifyJWT, async (req, res) => {
+    app.put('/user/admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
       const email = req.params.email;
-      const requester = req.decoded.email;
-      const requesterAccount = await userCollection.findOne({email: requester})
-      if(requesterAccount.role === 'admin'){
-        const filter = { email: email };
-        const updateDoc = {
-          $set: {role:'admin'},
-        };
-        const result = await userCollection.updateOne(filter, updateDoc);
-        res.send({result});
-      }else{
-        res.status(403).send({message:'Forbidden Access. You have no Permission'})
-      }
-
-    });
+      const filter = { email: email };
+      const updateDoc = {
+        $set: { role: 'admin' },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    })
     //  create/post single data of booking and send to backend
     app.post("/booking", async (req, res) => {
       const booking = req.body;
@@ -167,6 +176,12 @@ async function run() {
       const result = await bookingCollection.insertOne(booking);
       return res.send({ success: true, result });
     });
+    //  create/post single Doctor Data insert mongodb collection
+    app.post("/doctor", verifyJWT, verifyAdmin, async(req,res)=>{
+      const doctor = req.body;
+      const result = await doctorCollection.insertOne(doctor)
+      res.send(result)
+    })
     /**
      * API Naming Convention
      * api.get('/booking') // get all booking
@@ -175,6 +190,7 @@ async function run() {
      * api.patch('/booking/:id')
      * api.delete('/booking/:id')
      */
+
   } finally {
     // await client.close();
   }
