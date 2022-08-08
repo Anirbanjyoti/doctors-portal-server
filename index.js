@@ -121,6 +121,7 @@ async function run() {
       .collection("services");
     const userCollection = client.db("doctors_portal").collection("users");
     const doctorCollection = client.db("doctors_portal").collection("doctors");
+    const paymentCollection = client.db('doctors_portal').collection('payments');
 
     // Verify Admin if you are admin then you have access
     const verifyAdmin = async (req, res, next) => {
@@ -271,6 +272,22 @@ async function run() {
       sendAppointmentEmail(booking);
       return res.send({ success: true, result });
     });
+    // update payment success into database
+    app.patch('/booking/:id', verifyJWT, async(req, res) =>{
+      const id  = req.params.id;
+      const payment = req.body;
+      const filter = {_id: ObjectId(id)};
+      const updatedDoc = {
+        $set: {
+          paid: true,
+          transactionId: payment.transactionId
+        }
+      }
+
+      const result = await paymentCollection.insertOne(payment);
+      const updatedBooking = await bookingCollection.updateOne(filter, updatedDoc);
+      res.send(updatedBooking);
+    })
     // Load Doctors data
     app.get("/doctor", verifyJWT, verifyAdmin, async (req, res) => {
       const doctors = await doctorCollection.find().toArray();
